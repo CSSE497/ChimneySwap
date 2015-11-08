@@ -1,0 +1,17 @@
+extends ./layout.jade
+
+block content
+	.jumbotron
+		.container.text-center
+			h1 Chimney Swap
+			p Chimney Swap is a chimney swapping service for chimney enthusiasts
+			.input-group
+				.input-group-btn
+					button.text-center.btn.btn-primary.btn-block(
+						type = "button"
+					) Learn More
+				.input-group-btn
+					a(href="/auth/google")
+						button.text-center.btn.btn-primary.btn-block(
+							type = "button"
+						) Sign In

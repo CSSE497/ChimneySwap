@@ -1,0 +1,28 @@
+extends ./layout.jade
+
+block content
+	nav.navbar.navbar-default
+		.collapse.navbar-collapse#tabs
+			ul.nav.navbar-nav
+				+tab("my-chimneys").class("active")
+					My Chimneys <span class="sr-only">(current)</span>
+				+tab("search-chimneys")
+					Search For chimneys
+				+tab("my-swaps")
+					My Chimney Swaps
+					span.badge
+	.tab-content
+		.tab-pane.active#my-chimneys(role="tabpanel")
+			.chimney-list
+				h3 My Chimneys
+				//for chimney in myChimneys
+					.chimney
+						span.name chimney.name
+						img(src=chimney.src)
+						button Share
+
+		.tab-pane#search-chimneys(role="tabpanel")
+			div Search Chimneys
+		.tab-pane#my-swaps(role="tabpanel")
+			div my-swaps
+	div HELLLLLLLO!
