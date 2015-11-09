@@ -15,6 +15,8 @@ var DOMAIN_NAME = config.domainName;
 var PORT = config.port;
 var SERVER_URL = "http://"+DOMAIN_NAME+":"+PORT;
 
+var app = express();
+
 function geocode(address,done,error){
 	var url = "https://maps.googleapis.com/maps/api/geocode/json";
 	var params = {
@@ -116,6 +118,10 @@ Chimney.prototype.insert = function(){
 	var ret = Record.prototype.insert.call(this);
 	ret.share();
 	return ret;
+};
+
+Chimney.prototype.remove = function(){
+	return Resource.prototype.remove.call(this);
 }
 
 Chimney.prototype.insertCascade = function(){
@@ -123,7 +129,7 @@ Chimney.prototype.insertCascade = function(){
 	if(this.user){
 		this.user.chimneys[this.id] = this;
 	}
-}
+};
 
 Chimney.prototype.resource = function(){
 	if(this.id === null)
@@ -176,8 +182,6 @@ passport.use(new GoogleStrategy(
 		done(null, user);
 	}
 ));
-
-var app = express();
 
 app.use(bodyParser.json({limit:'50mb'}));
 //app.use(bodyParser.urlencoded({limit:'50mb', extended:true}));
@@ -290,8 +294,6 @@ app.post('/chimney', function (req, res) {
 		res.setHeader('Content-Type', 'text/plain');
 		res.status(401).send("Address or Position Required");
 	}
-
-
 });
 
 app.get('/chimney', function (req, res){
@@ -302,6 +304,23 @@ app.get('/chimney', function (req, res){
 	}
 	res.setHeader('Content-Type', 'application/json');
 	res.status(200).send(chimney.resource());
+});
+
+app.delete('/chimney', function(req, res){
+	var id = req.param('id');
+	if(!id){
+		res.setHeader('Content-Header', 'text/plain');
+		res.status(401).send('deleting a chimney requires an id');
+		return;
+	}
+	var chimney = database.chimneys[id];
+	if(chimney){
+		chimney.remove();
+		res.status(200).send();
+		return;
+	}
+	res.setHeader('Content-Header', 'text/plain');
+	res.status(404).send("No chimney with id: "+id);
 });
 
 app.get('/chimneys', function (req, res){
@@ -325,37 +344,21 @@ var user = new User({"id":"109986445607396986536", "name":{"givenName":"Dan","fa
 var pos = {lat:39.44,lng:-87.34};
 var x = new Chimney("Red Chimney", user, pos).insert();
 x.position = {lat:39.44,lng:-87.34};
-x.share();
 
 x = new Chimney("Silver Stack", user, pos).insert();
 x.position = {lat:39.44,lng:-87.34};
-x.share();
 
-x = new Chimney("Cinder Smokeshaft", user, pos).insert();
-x.position = {lat:39.44,lng:-87.34};
-x.share();
+x = new Chimney("Cinder Smokeshaft", null, pos).insert();
 
-x = new Chimney("Amber Pillar", user, pos).insert();
-x.position = {lat:39.44,lng:-87.34};
-x.share();
+x = new Chimney("Amber Pillar", null, pos).insert();
 
-x = new Chimney("Bricked Square Shaft", user, pos).insert();
-x.position = {lat:39.44,lng:-87.34};
-x.share();
+x = new Chimney("Bricked Square Shaft", null, pos).insert();
 
-x = new Chimney("Victorian Ventilator", user, pos).insert();
-x.position = {lat:39.44,lng:-87.34};
-x.share();
+x = new Chimney("Victorian Ventilator", null, pos).insert();
 
-x = new Chimney("Chimney Rock", user, pos).insert();
-x.position = {lat:39.44,lng:-87.34};
-x.share();
+x = new Chimney("Chimney Rock", null, pos).insert();
 
-x = new Chimney("Twisted Tube", user, pos).insert();
-x.position = {lat:39.44,lng:-87.34};
-x.share();
+x = new Chimney("Twisted Tube", null, pos).insert();
 
-x = new Chimney("Cubed Chimney", user, pos).insert();
-x.position = {lat:39.44,lng:-87.34};
-x.share();
+x = new Chimney("Cubed Chimney", null, pos).insert();
 
