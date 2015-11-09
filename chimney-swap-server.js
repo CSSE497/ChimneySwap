@@ -1,4 +1,6 @@
 var express  = require('express');
+var https = require('https');
+var bodyParser  = require('body-parser');
 var passport = require('passport');
 var session = require('express-session');
 var GoogleStrategy = require('passport-google-oauth2').Strategy;
@@ -12,6 +14,31 @@ var GOOGLE_CONSUMER_SECRET = config.apiSecret;
 
 var PORT = 3000;
 
+function geocode(address,done,error){
+	var url = "https://maps.googleapis.com/maps/api/geocode/json";
+	var params = {
+		'address':address,
+		'key':GOOGLE_CONSUMER_KEY
+	};
+	https.request({
+			host:'maps.googleapis.com',
+			path:'/maps/api/geocode/json?address='+address+'&key='+GOOGLE_CONSUMER_KEY,
+			method:'GET'
+		}, function(response){
+			var str = '';
+			response.on('data',function(dat){
+				str += dat;
+			});
+			response.on('end',function(){
+				done(JSON.parse(str));
+			});
+			response.on('error',function(err){
+				error(err);
+			});
+		}
+	);
+}
+
 var database = {
 	users:{},
 	chimneys:{},
@@ -22,60 +49,30 @@ function Record(table,constructor){
 	this.table = table;
 }
 
-Record.prototype.cascade = function(fun){
-	Object.keys(this).forEach(function(key){
-		var prop = this[key];
-		if(prop instanceof Object){
-			Object.keys(prop).forEach(function(k){
-				v = prop[k];
-				fun(k,v);
-			});
-		}
-	});
-};
-
-/*
-Record.prototype.update = function(){
-	var record = this.table[this.id];
-	var old = this;
-	this.updateCascade(
-	this.cascade(function(table, key, value){
-		value.upsert();
-		record[table][key] = value;
-	});
-	return record;
-};
-*/
-
 Record.prototype.insert = function(){
 	this.table[this.id] = this;
 	this.insertCascade();
 	return this;
 };
 
-Record.prototype.cascadeInsert = function(){};
+Record.prototype.insertCascade = function(){};
 
 Record.prototype.remove = function(){
 	delete this.table[this.id];
-	this.cascade(function(table, key, value){
-		value.remove();
-	});
+	this.deleteCascade();
 	return this;
 };
 
-Record.prototype.cascadeDelete = function(){};
-
-/*
-Record.prototype.upsert = function(){
-	if(this.table[this.id]){
-		return this.update();
-	} else {
-		return this.insert();
-	}
-}
-*/
+Record.prototype.deleteCascade = function(){};
 
 function User(profile){
+	var rec = this.table[this.id];
+	if(rec){
+		rec.firstName = profile.name.givenName;	
+		rec.lastName = profile.name.familyName;
+		rec.email = profile.email;
+		return rec;
+	}
 	this.id = profile.id;
 	this.firstName = profile.name.givenName;
 	this.lastName = profile.name.familyName;
@@ -85,10 +82,25 @@ function User(profile){
 
 User.prototype = new Record(database.users);
 
-function Chimney(user, address, imageUrl){
+User.prototype.homeView = function(){
+	var user = this;
+	return {
+		myChimneys:Object.keys(this.chimneys).map(function(key){
+			return user.chimneys[key];
+		}),
+		sharedChimneys:Object.keys(database.sharedChimneys).filter(function(key){
+			return !(key in user.chimneys);	
+		}).map(function(key){
+			return database.sharedChimneys[key];
+		})
+	};
+}
+
+function Chimney(name, user, position){
 	this.id = null;
+	this.name = name;
 	this.user = user;
-	this.address = address;
+	this.position = position;
 }
 
 Chimney.prototype = new Record(database.chimneys);
@@ -99,26 +111,54 @@ Chimney.prototype.insert = function(){
 	if(this.id === null){
 		this.id = Chimney.nextId++;
 	}
-	return Record.prototype.insert.call(this);
+	console.log('inserting new chimney with id: '+this.id);
+	var ret = Record.prototype.insert.call(this);
+	ret.share();
+	return ret;
+}
+
+Chimney.prototype.insertCascade = function(){
+	console.log(this.user);
+	if(this.user){
+		this.user.chimneys[this.id] = this;
+	}
 }
 
 Chimney.prototype.resource = function(){
+	console.log("RESOURCE");
 	if(this.id === null)
 		throw new Error("Can't create resource, chimney has no id");
-	return JSON.stringify({
-		id:      this.id,
-		userId:  this.user.id,
-		address: this.address,
-		image:   'images/'+this.id+'.png'
-	});
+	var obj = {
+		id:       this.id,
+		name:     this.name,
+		position: this.position,
+		address:  this.address,
+		image:    'images/'+this.id+'.png'
+	};
+	if(this.user){
+		obj.userId = this.user.id;
+	}
+	return JSON.stringify(obj);
+};
+
+Chimney.prototype.imageUrl = function(){
+	return 'images/'+this.id+'.png';
+};
+
+Chimney.prototype.share = function(){
+	database.sharedChimneys[this.id] = this;
+};
+
+Chimney.prototype.unshare = function(){
+	delete database.sharedChimneys[this.id];
 };
 
 passport.serializeUser(function(user, done) {
-	done(null, user);
+	done(null, user.id);
 });
 
-passport.deserializeUser(function(obj, done) {
-	done(null, obj);
+passport.deserializeUser(function(id, done) {
+	done(null, database.users[id]);
 });
 
 passport.use(new GoogleStrategy(
@@ -129,13 +169,19 @@ passport.use(new GoogleStrategy(
 		passReqToCallback   : true
 	},
 	function(req, accessToken, refreshToken, profile, done){
-		console.log(profile);
-		var user = User.upsert(new User(profile));
+		var user = new User(profile);
+		if(!database.users[user.id]){
+			user.insert();
+		}
 		done(null, user);
 	}
 ));
 
 var app = express();
+
+app.use(bodyParser.json({limit:'50mb'}));
+//app.use(bodyParser.urlencoded({limit:'50mb', extended:true}));
+
 
 app.use(session({
 	secret:'shh! this is a secret',
@@ -145,6 +191,8 @@ app.use(session({
 
 app.use(passport.initialize());
 app.use(passport.session());
+
+app.use('/images', express.static(__dirname + '/images'));
 
 app.get('/logout',function(req, res){
 	req.logout();
@@ -160,7 +208,9 @@ app.get('/', function(req, res){
 });
 
 app.get('/home', function(req,res){
-	res.render('home');
+	console.log(req.session);
+	console.log(database.users);
+	res.render('home', database.users[req.session.passport.user].homeView());
 });
 
 app.get('/auth/google',
@@ -179,24 +229,65 @@ app.get('/auth/google/return',
 );
 
 app.post('/chimney', function (req, res) {
-	var user = database.users[req.session.id];
+	console.log(req);
+	var user = null;
+	if(req.session && req.session.passport && req.session.passport.user){
+		user = database.users[req.session.passport.user];
+	}
 	var address = req.param('address');
-	var chimney = new Chimney(user, address, imageUrl);
-	var tempPath = req.files.file.path;
-	chimney.insert();
-	var targetPath = path.resolve('./images/'+chimney.id+'.png');
-	if (path.extname(req.files.file.name).toLowerCase() === '.png') {
-		fs.rename(tempPath, targetPath, function(err) {
-			if (err) throw err;
-			console.log("Upload completed!");
-			res.status(201).send();
+	var latitude = req.param('latitude');
+	var longitude = req.param('longitude');
+	var position = req.param('position');
+	var name = req.param('name');
+	var img = req.param('image');
+	function makeChimney(position){
+		console.log("Sample application trying to make chimney in makeChimney at position: "+position);
+		var chimney = new Chimney(name, user, address);
+		chimney.insert();
+		var targetPath = path.resolve(chimney.imageUrl());
+		if(img){
+			console.log("WRITING IMAGE");
+			fs.writeFile(targetPath, img.file_data, 'base64', function(err){
+				if(err) {
+					console.log(err);
+					res.status(401).send('bad image');
+				} else
+					res.status(201).send();
+			});
+		} else if (req.files.file) {
+				var tempPath = req.files.file.path;
+				fs.rename(tempPath, targetPath, function(err) {
+					if (err) {
+						console.log(err);
+						res.status(401).send('bad image');
+					} else
+						res.status(201).send();
+				});
+		} else {
+			fs.unlink(tempPath, function () {
+				res.status(400).send('No image');
+			});
+		}
+	}
+	if(latitude){
+		if(longitude){
+			makeChimney({lat: latitude, lng: longitude});
+		} else {
+			req.status(401).send('no longitude provided');
+			return;
+		}
+	} else if(position){
+		makeChimney(position);
+	} else if(address){
+		geocode(address, makeChimney, function(err){
+			console.error(err);
+			res.status(500).send();	
 		});
 	} else {
-		fs.unlink(tempPath, function () {
-			if (err) throw err;
-			res.status(400).send('image must be a png');
-		});
+		res.status(401).send("Address or Position Required");
 	}
+
+
 });
 
 app.get('/chimney', function (req, res){
@@ -209,6 +300,58 @@ app.get('/chimney', function (req, res){
 	res.status(200).send(chimney.resource());
 });
 
+app.get('/chimneys', function (req, res){
+	res.setHeader('Content-Type', 'application/json');
+	res.status(200).send(
+		'['+Object.keys(database.sharedChimneys).map(
+			function(k){
+				return database.sharedChimneys[k].resource();
+			}
+		).join(',')+']'
+	);
+});
+
+app.use('/', express.static(__dirname + '/public'));
+
 app.listen(PORT);
 console.log("started server on port "+PORT);
+
+var user = new User({"id":"109986445607396986536", "name":{"givenName":"Dan","familyName":"Hanson"}, "email":"danielghanson93@gmail.com"}).insert();
+
+var pos = {lat:39.44,lng:-87.34};
+var x = new Chimney("Red Chimney", user, pos).insert();
+x.position = {lat:39.44,lng:-87.34};
+x.share();
+
+x = new Chimney("Silver Stack", user, pos).insert();
+x.position = {lat:39.44,lng:-87.34};
+x.share();
+
+x = new Chimney("Cinder Smokeshaft", user,"665 Antioch Circle West, Terre Haute, IN").insert();
+x.position = {lat:39.44,lng:-87.34};
+x.share();
+
+x = new Chimney("Amber Pillar", user, pos).insert();
+x.position = {lat:39.44,lng:-87.34};
+x.share();
+
+x = new Chimney("Bricked Square Shaft", user, pos).insert();
+x.position = {lat:39.44,lng:-87.34};
+x.share();
+
+x = new Chimney("Victorian Ventilator", user, pos).insert();
+x.position = {lat:39.44,lng:-87.34};
+x.share();
+
+x = new Chimney("Chimney Rock", user, pos).insert();
+x.position = {lat:39.44,lng:-87.34};
+x.share();
+
+x = new Chimney("Twisted Tube", user, pos).insert();
+x.position = {lat:39.44,lng:-87.34};
+x.share();
+
+x = new Chimney("Cubed Chimney", user,"665 Antioch Circle West, Terre Haute, IN").insert();
+x.position = {lat:39.44,lng:-87.34};
+x.share();
 
