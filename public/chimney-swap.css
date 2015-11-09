@@ -1,0 +1,12 @@
+.chimney-thumbnail {
+	float: left;
+	width: 20%;
+}
+
+.img-container {
+	width: 100%;
+	height: 30vh;
+	display: inline-block;
+	overflow: hidden;
+}
+
