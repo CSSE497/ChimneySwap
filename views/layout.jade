@@ -1,7 +1,7 @@
 doctype html
 
 mixin tab(to)
-	li(class=attributes.class)
+	li&attributes(attributes)
 		a(href="##{to}", aria-controls="#{to}", role="tab", data-toggle="tab")
 			block
 
@@ -12,10 +12,7 @@ mixin chimneyThumbnail(chimney)
 			img.center-block.img-responsive(src=chimney.imageUrl())
 		.caption
 			h4=chimney.name
-			p: a.btn.btn-primary(
-				href='#'
-				role='button'
-			) Swap!
+			block
 
 
 html
@@ -25,7 +22,6 @@ html
 		link(rel="stylesheet", href="https://maxcdn.bootstrapcdn.com/bootswatch/3.3.5/#{theme}/bootstrap.min.css")
 		link(rel="stylesheet", href="chimney-swap.css")
 		script(src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js")
-		script(src="/chimneyswap.js")
 	body
 		block content
 		script(src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js")

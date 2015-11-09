@@ -4,15 +4,16 @@ var bodyParser  = require('body-parser');
 var passport = require('passport');
 var session = require('express-session');
 var GoogleStrategy = require('passport-google-oauth2').Strategy;
-var config = require('config.json')('/app/config.json');
+var config = require('config.json')(__dirname+'/config.json');
 
 var path = require('path');
 var fs = require('fs');
 
 var GOOGLE_CONSUMER_KEY = config.apiKey;
 var GOOGLE_CONSUMER_SECRET = config.apiSecret;
-
-var PORT = 3000;
+var DOMAIN_NAME = config.domainName;
+var PORT = config.port;
+var SERVER_URL = "http://"+DOMAIN_NAME+":"+PORT;
 
 function geocode(address,done,error){
 	var url = "https://maps.googleapis.com/maps/api/geocode/json";
@@ -125,7 +126,6 @@ Chimney.prototype.insertCascade = function(){
 }
 
 Chimney.prototype.resource = function(){
-	console.log("RESOURCE");
 	if(this.id === null)
 		throw new Error("Can't create resource, chimney has no id");
 	var obj = {
@@ -133,7 +133,7 @@ Chimney.prototype.resource = function(){
 		name:     this.name,
 		position: this.position,
 		address:  this.address,
-		image:    'images/'+this.id+'.png'
+		image:    this.imageUrl
 	};
 	if(this.user){
 		obj.userId = this.user.id;
@@ -142,7 +142,7 @@ Chimney.prototype.resource = function(){
 };
 
 Chimney.prototype.imageUrl = function(){
-	return 'images/'+this.id+'.png';
+	return SERVER_URL+'/images/'+this.id+'.png';
 };
 
 Chimney.prototype.share = function(){
@@ -165,7 +165,7 @@ passport.use(new GoogleStrategy(
 	{
 		clientID: GOOGLE_CONSUMER_KEY,
 		clientSecret: GOOGLE_CONSUMER_SECRET,
-		callbackURL: 'http://chimneyswap.thepathfinder.xyz/auth/google/return',
+		callbackURL: SERVER_URL+'/auth/google/return',
 		passReqToCallback   : true
 	},
 	function(req, accessToken, refreshToken, profile, done){
@@ -199,7 +199,7 @@ app.get('/logout',function(req, res){
 	req.redirect('/');
 });
 
-app.set('views','/app/views');
+app.set('views', __dirname + '/views');
 
 app.set('view engine', 'jade');
 
@@ -222,9 +222,9 @@ app.get('/auth/google',
 
 app.get('/auth/google/return',
 	passport.authenticate('google', {
-		failureRedirect: '/',
-		successRedirect: '/home',
-		failureFlash: "FAILED TO LOGIN"
+		failureRedirect: SERVER_URL+'/',
+		successRedirect: SERVER_URL+'/home',
+		failureFlash: true
 	})
 );
 
@@ -250,6 +250,7 @@ app.post('/chimney', function (req, res) {
 			fs.writeFile(targetPath, img.file_data, 'base64', function(err){
 				if(err) {
 					console.log(err);
+					res.setHeader('Content-Type', 'text/plain');
 					res.status(401).send('bad image');
 				} else
 					res.status(201).send();
@@ -259,6 +260,7 @@ app.post('/chimney', function (req, res) {
 				fs.rename(tempPath, targetPath, function(err) {
 					if (err) {
 						console.log(err);
+						res.setHeader('Content-Type', 'text/plain');
 						res.status(401).send('bad image');
 					} else
 						res.status(201).send();
@@ -273,6 +275,7 @@ app.post('/chimney', function (req, res) {
 		if(longitude){
 			makeChimney({lat: latitude, lng: longitude});
 		} else {
+			res.setHeader('Content-Type', 'text/plain');
 			req.status(401).send('no longitude provided');
 			return;
 		}
@@ -284,6 +287,7 @@ app.post('/chimney', function (req, res) {
 			res.status(500).send();	
 		});
 	} else {
+		res.setHeader('Content-Type', 'text/plain');
 		res.status(401).send("Address or Position Required");
 	}
 
@@ -314,7 +318,7 @@ app.get('/chimneys', function (req, res){
 app.use('/', express.static(__dirname + '/public'));
 
 app.listen(PORT);
-console.log("started server on port "+PORT);
+console.log("started server on: "+SERVER_URL);
 
 var user = new User({"id":"109986445607396986536", "name":{"givenName":"Dan","familyName":"Hanson"}, "email":"danielghanson93@gmail.com"}).insert();
 
@@ -327,7 +331,7 @@ x = new Chimney("Silver Stack", user, pos).insert();
 x.position = {lat:39.44,lng:-87.34};
 x.share();
 
-x = new Chimney("Cinder Smokeshaft", user,"665 Antioch Circle West, Terre Haute, IN").insert();
+x = new Chimney("Cinder Smokeshaft", user, pos).insert();
 x.position = {lat:39.44,lng:-87.34};
 x.share();
 
@@ -351,7 +355,7 @@ x = new Chimney("Twisted Tube", user, pos).insert();
 x.position = {lat:39.44,lng:-87.34};
 x.share();
 
-x = new Chimney("Cubed Chimney", user,"665 Antioch Circle West, Terre Haute, IN").insert();
+x = new Chimney("Cubed Chimney", user, pos).insert();
 x.position = {lat:39.44,lng:-87.34};
 x.share();
 

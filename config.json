@@ -1,4 +1,6 @@
 {
-	"apiKey":PLACE_API_KEY_HERE,
-	"apiSecret":PLACE_SECRET_HERE
+	"apiKey":API_KEY,
+	"apiSecret":API_SECRET,
+	"domainName":"localhost",
+	"port":3000
 }
