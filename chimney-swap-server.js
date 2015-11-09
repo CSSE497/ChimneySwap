@@ -4,7 +4,7 @@ var bodyParser  = require('body-parser');
 var passport = require('passport');
 var session = require('express-session');
 var GoogleStrategy = require('passport-google-oauth2').Strategy;
-var config = require('config.json')('./config.json');
+var config = require('config.json')('/app/config.json');
 
 var path = require('path');
 var fs = require('fs');
@@ -165,7 +165,7 @@ passport.use(new GoogleStrategy(
 	{
 		clientID: GOOGLE_CONSUMER_KEY,
 		clientSecret: GOOGLE_CONSUMER_SECRET,
-		callbackURL: 'http://localhost:3000/auth/google/return',
+		callbackURL: 'http://chimneyswap.thepathfinder.xyz/auth/google/return',
 		passReqToCallback   : true
 	},
 	function(req, accessToken, refreshToken, profile, done){
@@ -199,7 +199,7 @@ app.get('/logout',function(req, res){
 	req.redirect('/');
 });
 
-app.set('views','./views');
+app.set('views','/app/views');
 
 app.set('view engine', 'jade');
 
@@ -244,7 +244,7 @@ app.post('/chimney', function (req, res) {
 		console.log("Sample application trying to make chimney in makeChimney at position: "+position);
 		var chimney = new Chimney(name, user, address);
 		chimney.insert();
-		var targetPath = path.resolve(chimney.imageUrl());
+		var targetPath = path.resolve(__dirname+'/'+chimney.imageUrl());
 		if(img){
 			console.log("WRITING IMAGE");
 			fs.writeFile(targetPath, img.file_data, 'base64', function(err){
