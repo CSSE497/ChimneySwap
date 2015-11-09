@@ -5,24 +5,21 @@ block content
 		.collapse.navbar-collapse#tabs
 			ul.nav.navbar-nav
 				+tab("my-chimneys").class("active")
-					My Chimneys <span class="sr-only">(current)</span>
+					div My Chimneys <span class="sr-only">(current)</span>
 				+tab("search-chimneys")
-					Search For chimneys
+					div Search For chimneys
 				+tab("my-swaps")
-					My Chimney Swaps
+					div My Chimney Swaps
 					span.badge
 	.tab-content
 		.tab-pane.active#my-chimneys(role="tabpanel")
-			.chimney-list
-				h3 My Chimneys
-				//for chimney in myChimneys
-					.chimney
-						span.name chimney.name
-						img(src=chimney.src)
-						button Share
-
+			.container: div.row
+				for chimney in myChimneys
+					+chimneyThumbnail(chimney)
 		.tab-pane#search-chimneys(role="tabpanel")
-			div Search Chimneys
+			.container: div.row
+				for chimney in sharedChimneys
+					+chimneyThumbnail(chimney)
 		.tab-pane#my-swaps(role="tabpanel")
-			div my-swaps
-	div HELLLLLLLO!
+			div My Swaps
+
