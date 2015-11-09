@@ -1,0 +1,15 @@
+{
+	"name": "ChimneySwap",
+	"version": "0.0.1",
+	"private": "true",
+	"dependencies": {
+		"express": "*",
+		"jade": "*",
+		"passport":"*",
+		"express-session":"*",
+		"passport-google-oauth2":"*",
+		"config.json":"*",
+		"body-parser":"*"
+	}
+}
+
