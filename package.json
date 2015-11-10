@@ -10,6 +10,9 @@
 		"passport-google-oauth2":"*",
 		"config.json":"*",
 		"body-parser":"*"
+	},
+	"scripts": {
+		"start": "node chimney-swap-server.js"
 	}
 }
 
