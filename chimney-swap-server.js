@@ -95,7 +95,8 @@ User.prototype.homeView = function(){
 			return !(key in user.chimneys);	
 		}).map(function(key){
 			return database.sharedChimneys[key];
-		})
+		}),
+		theme:'slate'
 	};
 }
 
@@ -139,7 +140,7 @@ Chimney.prototype.resource = function(){
 		name:     this.name,
 		position: this.position,
 		address:  this.address,
-		image:    this.imageUrl
+		image:    this.imageUrl()
 	};
 	if(this.user){
 		obj.userId = this.user.id;
