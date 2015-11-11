@@ -7,13 +7,25 @@ mixin tab(to)
 
 
 mixin chimneyThumbnail(chimney)
-	.thumbnail.chimney-thumbnail
+	.thumbnail.chimney-thumbnail&attributes(attributes)
 		.img-container
 			img.center-block.img-responsive(src=chimney.imageUrl())
 		.caption
 			h4=chimney.name
 			block
 
+mixin addChimneyForm
+	form(role="form", action="chimney", method="post")
+		.form-group
+			label.control-label(for="name") Name
+			input.form-control(type="text", name="name")
+		.form-group
+			label.control-label(for="address") Address
+			input.form-control(type="text", name="address")
+		.form-group
+			label.control-label(for="image") Picture
+			input(type="file", name="image", accept="image/*")
+		input.btn.btn-primary(type="submit", value="Submit")
 
 html
 	head

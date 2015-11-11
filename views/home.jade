@@ -5,11 +5,11 @@ block content
 		.collapse.navbar-collapse#tabs
 			ul.nav.navbar-nav
 				+tab("my-chimneys")(class="active")
-					div My Chimneys <span class="sr-only">(current)</span>
+					| My Chimneys <span class="sr-only">(current)</span>
 				+tab("search-chimneys")
-					div Search For chimneys
+					| Search For chimneys
 				+tab("my-swaps")
-					div My Chimney Swaps
+					| My Chimney Swaps
 					span.badge
 	.tab-content
 		.tab-pane.active#my-chimneys(role="tabpanel")
@@ -20,6 +20,55 @@ block content
 			.container: div.row
 				for chimney in sharedChimneys
 					+chimneyThumbnail(chimney)
+						button.btn.btn-primary.swap-button(
+							type="button"
+							data-chimney=chimney.resource()
+						) Swap!
+			script.
+				$('.swap-button').click(function(){
+					var chimney = JSON.parse($(this).attr('data-chimney'));
+					$('#swap-chimney-name').text(chimney.name);
+					$('#swap-chimney-img').attr('src',chimney.image)
+					$('#swap-modal').modal({backdrop:true});
+				});
 		.tab-pane#my-swaps(role="tabpanel")
 			div My Swaps
+
+	#swap-modal.modal.fade(role="dialog")
+		.modal-dialog
+			.modal-content
+				.modal-header
+					button.close(type="button", data-dismiss="modal") &times;
+					h2 Select a Chimney to Swap!
+
+				.modal-body: div.container.col-sm-12: div.row
+					.col-sm-6
+						#swap-chimney-info
+							h4#swap-chimney-name
+							.img-container
+								img#swap-chimney-img.img-responsive
+					.col-sm-6
+						- if(myChimneys.length > 0){
+							ul.nav.nav-tabs(role="tablist")
+								+tab("select-chimney")(
+									class="active"
+									role="presentation"
+								) Choose A Chimney
+								+tab("add-chimney")(
+									role="presentation"
+								) Add a Chimney
+
+							.tab-content
+								#select-chimney.tab-pane.active(role="tabpanel")
+									for chimney in myChimneys
+										+chimneyThumbnail(chimney)
+											button.btn.btn-primary Swap
+								#add-chimney.tab-pane
+									+addChimneyForm
+						- } else {
+							+addChimneyForm
+						- }
+
+				.modal-footer
+					button.btn.btn-default(type="button", data-dismiss="modal") Close
 
