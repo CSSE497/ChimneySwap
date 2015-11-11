@@ -3,7 +3,7 @@ var https = require('https');
 var bodyParser  = require('body-parser');
 var passport = require('passport');
 var session = require('express-session');
-var multipart = require('connect-multiparty')();
+var multipart = require('connect-multiparty')({uploadDir: __dirname+'/tmp'});
 var GoogleStrategy = require('passport-google-oauth2').Strategy;
 var config = require('config.json')(__dirname+'/config.json');
 
@@ -296,7 +296,7 @@ app.post('/chimney', multipart, function (req, res) {
 				} else if(tab){
 					res.status(201).render('home',homeView(
 						req.session,
-						'swap',
+						tab,
 						swap
 					));
 				} else
@@ -313,7 +313,7 @@ app.post('/chimney', multipart, function (req, res) {
 				} else if(tab){
 					res.status(201).render('home',
 						homeView(req.session,
-							'search',
+							tab,
 							swap
 						)
 					);
