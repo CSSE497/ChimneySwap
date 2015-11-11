@@ -122,8 +122,12 @@ Chimney.prototype.insert = function(){
 };
 
 Chimney.prototype.remove = function(){
-	return Resource.prototype.remove.call(this);
-}
+	delete database.sharedChimneys[this.id];
+	if(this.user){
+		delete this.user.chimneys[this.id];
+	}
+	return Record.prototype.remove.call(this);
+};
 
 Chimney.prototype.insertCascade = function(){
 	console.log(this.user);
@@ -150,6 +154,10 @@ Chimney.prototype.resource = function(){
 
 Chimney.prototype.imageUrl = function(){
 	return SERVER_URL+'/images/'+this.id+'.png';
+};
+
+Chimney.prototype.imagePath = function(){
+	return __dirname+'/images/'+this.id+'.png';
 };
 
 Chimney.prototype.share = function(){
@@ -186,7 +194,6 @@ passport.use(new GoogleStrategy(
 
 app.use(bodyParser.json({limit:'50mb'}));
 //app.use(bodyParser.urlencoded({limit:'50mb', extended:true}));
-
 
 app.use(session({
 	secret:'shh! this is a secret',
@@ -249,7 +256,7 @@ app.post('/chimney', function (req, res) {
 		console.log("Sample application trying to make chimney in makeChimney at position: "+position);
 		var chimney = new Chimney(name, user, address);
 		chimney.insert();
-		var targetPath = path.resolve(__dirname+'/'+chimney.imageUrl());
+		var targetPath = path.resolve(chimney.imagePath());
 		if(img){
 			console.log("WRITING IMAGE");
 			fs.writeFile(targetPath, img.file_data, 'base64', function(err){
