@@ -14,8 +14,8 @@ mixin chimneyThumbnail(chimney)
 			h4=chimney.name
 			block
 
-mixin addChimneyForm
-	form(role="form", action="chimney", method="post")
+mixin chimneyForm(tab)
+	form(role="form", method="post", action="chimney", enctype="multipart/form-data")
 		.form-group
 			label.control-label(for="name") Name
 			input.form-control(type="text", name="name")
@@ -25,6 +25,8 @@ mixin addChimneyForm
 		.form-group
 			label.control-label(for="image") Picture
 			input(type="file", name="image", accept="image/*")
+		input.swap-input(type='hidden', name="swap" value="0")
+		input.swap-input(type='hidden', name="tab" value="#{tab}")
 		input.btn.btn-primary(type="submit", value="Submit")
 
 html

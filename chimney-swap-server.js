@@ -3,6 +3,7 @@ var https = require('https');
 var bodyParser  = require('body-parser');
 var passport = require('passport');
 var session = require('express-session');
+var multipart = require('connect-multiparty')();
 var GoogleStrategy = require('passport-google-oauth2').Strategy;
 var config = require('config.json')(__dirname+'/config.json');
 
@@ -18,14 +19,18 @@ var SERVER_URL = "http://"+DOMAIN_NAME;
 var app = express();
 
 function geocode(address,done,error){
+	console.log("geocoding address: "+address);
 	var url = "https://maps.googleapis.com/maps/api/geocode/json";
 	var params = {
 		'address':address,
 		'key':GOOGLE_CONSUMER_KEY
 	};
+	var pos = {lat:39.44,lng:-87.34};
+	done(pos);
+	return; // geocoding does not work
 	https.request({
 			host:'maps.googleapis.com',
-			path:'/maps/api/geocode/json?address='+address+'&key='+GOOGLE_CONSUMER_KEY,
+			path:'/maps/api/geocode/json?address='+encodeURIComponent(address)+'&key='+encodeURIComponent(GOOGLE_CONSUMER_KEY),
 			method:'GET'
 		}, function(response){
 			var str = '';
@@ -33,13 +38,14 @@ function geocode(address,done,error){
 				str += dat;
 			});
 			response.on('end',function(){
+				console.log(str);
 				done(JSON.parse(str));
 			});
 			response.on('error',function(err){
 				error(err);
 			});
 		}
-	);
+	).end();
 }
 
 var database = {
@@ -85,20 +91,36 @@ function User(profile){
 
 User.prototype = new Record(database.users);
 
-User.prototype.homeView = function(){
-	var user = this;
-	return {
-		myChimneys:Object.keys(this.chimneys).map(function(key){
-			return user.chimneys[key];
-		}),
-		sharedChimneys:Object.keys(database.sharedChimneys).filter(function(key){
-			return !(key in user.chimneys);	
-		}).map(function(key){
-			return database.sharedChimneys[key];
-		}),
-		theme:'slate'
-	};
+function homeView(session, tab, swap){
+	console.log(session);
+	var obj;
+	if(session && session.passport && session.passport.user){
+		obj = database.users[session.passport.user].homeView(tab, swap);
+	} else {
+		obj = {
+			chimneys:database.chimneys,
+			theme:'slate',
+			tab:tab || 'search',
+		};
+	}
+	if(swap){
+		obj.swap = {
+			mine: database.chimneys[swap.mine],
+			theirs: database.chimneys[swap.theirs]
+		};
+		obj.apiKey = GOOGLE_CONSUMER_KEY;
+	}
+	return obj;
 }
+
+User.prototype.homeView = function(tab){
+	return {
+		myChimneys:database.users[this.id].chimneys,
+		chimneys:database.chimneys,
+		theme:'slate',
+		tab:(tab || 'search')
+	};
+};
 
 function Chimney(name, user, position){
 	this.id = null;
@@ -130,7 +152,6 @@ Chimney.prototype.remove = function(){
 };
 
 Chimney.prototype.insertCascade = function(){
-	console.log(this.user);
 	if(this.user){
 		this.user.chimneys[this.id] = this;
 	}
@@ -193,7 +214,7 @@ passport.use(new GoogleStrategy(
 ));
 
 app.use(bodyParser.json({limit:'50mb'}));
-//app.use(bodyParser.urlencoded({limit:'50mb', extended:true}));
+app.use(bodyParser.urlencoded());
 
 app.use(session({
 	secret:'shh! this is a secret',
@@ -220,9 +241,7 @@ app.get('/', function(req, res){
 });
 
 app.get('/home', function(req,res){
-	console.log(req.session);
-	console.log(database.users);
-	res.render('home', database.users[req.session.passport.user].homeView());
+	res.render('home',homeView(req.session, 'search'));
 });
 
 app.get('/auth/google',
@@ -240,47 +259,70 @@ app.get('/auth/google/return',
 	})
 );
 
-app.post('/chimney', function (req, res) {
-	console.log(req);
+app.post('/swap', function(req,res){
+	var mine = req.param('mine');
+	var theirs = req.param('theirs');
+	res.render('home',homeView(req.session,'swap',{mine:mine,theirs:theirs}));
+});
+
+app.post('/chimney', multipart, function (req, res) {
 	var user = null;
 	if(req.session && req.session.passport && req.session.passport.user){
 		user = database.users[req.session.passport.user];
 	}
+	var redirect = req.param('redirect');
 	var address = req.param('address');
 	var latitude = req.param('latitude');
 	var longitude = req.param('longitude');
 	var position = req.param('position');
 	var name = req.param('name');
 	var img = req.param('image');
+	var tab = req.param('tab');
+	var theirs = req.param('swap');
 	function makeChimney(position){
 		console.log("Sample application trying to make chimney in makeChimney at position: "+position);
-		var chimney = new Chimney(name, user, address);
+		var chimney = new Chimney(name, user, position);
 		chimney.insert();
+		var swap = theirs ? {mine: chimney.id, theirs:theirs} : undefined;
 		var targetPath = path.resolve(chimney.imagePath());
+		console.log(req.files);
 		if(img){
 			console.log("WRITING IMAGE");
 			fs.writeFile(targetPath, img.file_data, 'base64', function(err){
 				if(err) {
 					console.log(err);
 					res.setHeader('Content-Type', 'text/plain');
-					res.status(401).send('bad image');
+					res.status(400).send('bad image');
+				} else if(tab){
+					res.status(201).render('home',homeView(
+						req.session,
+						'swap',
+						swap
+					));
 				} else
 					res.status(201).send();
 			});
-		} else if (req.files.file) {
-				var tempPath = req.files.file.path;
-				fs.rename(tempPath, targetPath, function(err) {
-					if (err) {
-						console.log(err);
-						res.setHeader('Content-Type', 'text/plain');
-						res.status(401).send('bad image');
-					} else
-						res.status(201).send();
-				});
-		} else {
-			fs.unlink(tempPath, function () {
-				res.status(400).send('No image');
+		} else if (req.files.image) {
+			var tempPath = req.files.image.path;
+			fs.rename(tempPath, targetPath, function(err) {
+				if (err) {
+					console.log(err);
+					res.setHeader('Content-Type', 'text/plain');
+					res.status(400).send('bad image');
+					fs.unlink(tempPath)
+				} else if(tab){
+					res.status(201).render('home',
+						homeView(req.session,
+							'search',
+							swap
+						)
+					);
+				} else
+					res.status(201).send()
 			});
+		} else {
+			res.setHeader('Content-Type', 'text/plain');
+			res.status(400).send('no images');
 		}
 	}
 	if(latitude){
@@ -288,7 +330,7 @@ app.post('/chimney', function (req, res) {
 			makeChimney({lat: latitude, lng: longitude});
 		} else {
 			res.setHeader('Content-Type', 'text/plain');
-			req.status(401).send('no longitude provided');
+			req.status(400).send('no longitude provided');
 			return;
 		}
 	} else if(position){
@@ -296,11 +338,12 @@ app.post('/chimney', function (req, res) {
 	} else if(address){
 		geocode(address, makeChimney, function(err){
 			console.error(err);
-			res.status(500).send();	
+			res.setHeader('Content-Type', 'text/plain');
+			res.status(400).send("invalid address: "+address);	
 		});
 	} else {
 		res.setHeader('Content-Type', 'text/plain');
-		res.status(401).send("Address or Position Required");
+		res.status(400).send("Address or Position Required");
 	}
 });
 
@@ -351,10 +394,8 @@ var user = new User({"id":"109986445607396986536", "name":{"givenName":"Dan","fa
 
 var pos = {lat:39.44,lng:-87.34};
 var x = new Chimney("Red Chimney", user, pos).insert();
-x.position = {lat:39.44,lng:-87.34};
 
 x = new Chimney("Silver Stack", user, pos).insert();
-x.position = {lat:39.44,lng:-87.34};
 
 x = new Chimney("Cinder Smokeshaft", null, pos).insert();
 

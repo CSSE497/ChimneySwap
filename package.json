@@ -9,7 +9,8 @@
 		"express-session":"*",
 		"passport-google-oauth2":"*",
 		"config.json":"*",
-		"body-parser":"*"
+		"body-parser":"*",
+		"connect-multiparty":"*"
 	},
 	"scripts": {
 		"start": "node chimney-swap-server.js"
