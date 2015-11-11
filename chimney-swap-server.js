@@ -13,7 +13,7 @@ var GOOGLE_CONSUMER_KEY = config.apiKey;
 var GOOGLE_CONSUMER_SECRET = config.apiSecret;
 var DOMAIN_NAME = config.domainName;
 var PORT = config.port;
-var SERVER_URL = "http://"+DOMAIN_NAME+":"+PORT;
+var SERVER_URL = "http://"+DOMAIN_NAME;
 
 var app = express();
 
