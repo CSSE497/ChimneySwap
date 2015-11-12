@@ -4,10 +4,6 @@ block content
 	nav.navbar.navbar-default
 		.collapse.navbar-collapse#tabs
 			ul.nav.navbar-nav
-				- if(myChimneys || myChimneys == []) {
-				+tab("search-chimneys")
-					| My Chimneys
-				- }
 				+tab("search-chimneys")(class=(tab=='search'?'active':''))
 					| Search for Chimneys
 				- if(swap){
@@ -17,12 +13,6 @@ block content
 				+tab("add-chimney")(class=(tab=='add'?'active':''))
 					| Add Chimney
 	.tab-content
-		- if(myChimneys || myChimneys == []) {
-		#my-chimneys.tab-pane(role='tabpanel')
-			.container: div.row
-				for chimney in myChimneys
-					+chimneyThumbnail(chimney)
-		- }
 		#search-chimneys(role="tabpanel", class='tab-pane '+(tab=='search'?'active':''))
 			.container: div.row
 				for chimney in chimneys
@@ -40,25 +30,21 @@ block content
 					$('.swap-input').val(chimney.id);
 				});
 		- if(swap) {
-		#my-swap(role="tabpanel", class='tab-pane'+(tab=='swap'?'active':''))
+		#my-swap(role="tabpanel", class='tab-pane '+(tab=='swap'?'active':''))
 			.container: div.row
-				.col-sm-9
+				.col-sm-12
 					#map
 
-				.col-sm-3
-					| PLACEHOLDER
 			script(src="/pathfinder.js")
-			script.
-				var mine = JSON.parse(
-					"#{swap.mine.resource()}"
-				);
+			script(src="https://maps.googleapis.com/maps/api/js")
+			script(type='text/javascript').
 
-				var theirs = JSON.parse(
-					"#{swap.theirs.resource()}"
-				);
+				var mine = !{swap.mine.resource()};
+
+				var theirs = !{swap.theirs.resource()};
 
 				var app = new Pathfinder(
-					'api.thepathfinder.xyz:9000',
+					'ws://api.thepathfinder.xyz:9000/socket',
 					'9c4166bb-9535-49e1-8844-1904a0b1f45b',
 					'password'
 				);
@@ -66,99 +52,94 @@ block content
 				function toLatLng(thing){
 					return new google.maps.LatLng(
 						thing.latitude,
-						thing.longitude,
+						thing.longitude
 					);
 				}
 
-				window.initMap = function{
-
-					
-					var directionsService = new google.maps.DirectionsService();
+				
+				var directionsService = new google.maps.DirectionsService();
 
 
-					var map = new google.maps.Map(
-						document.getElementById('map'),
-						{
-							center: theirs.position,
-							zoom: 10
+				var map = new google.maps.Map(
+					document.getElementById('map'),
+					{
+						center: theirs.position,
+						zoom: 10
+					}
+				);
+
+				function drawRoute(chim){
+					console.log('draw route');
+					var comMark = new google.maps.Marker({
+						position: chim.position,
+						map: map,
+						icon:'icon/Chimney.png'
+					});
+
+					var vMark = new google.maps.Marker({
+						icon:'icon/Transport.png'
+					});
+
+					return function(routed){
+						directionsDisplay = new google.maps.DirectionsRenderer();
+						directionsDisplay.setMap(map);
+						var route = routed.route;
+						var waypoints = route.actions.map(toLatLng);
+						comMark.setCenter(
+							toLatLng(route.value)
+						);
+
+						vMark.setMap(map);
+						vMArk.setCenter(toLatLng(route.vehicle));
+						var dirReq = {
+							origin:waypoints[0],
+							destination:waypoints[waypoints.length-1],
+							travelMode:google.maps.TravelMode.DRIVING,
+							waypoints:waypoints.slice(1,waypoints.length-1).map(
+								function(wp){return {location: wp}}
+							)
+						};
+						directionsService.route(dirReq, function(result, status){
+							if(status != google.maps.DirectionsStatus.OK)
+								throw new Error("error from google maps routing");
+							directionsDisplay.setDirections(result);
+						});
+						
+					};
+				}
+				app.getDefaultClusterId(function(id){
+					app.createCommodity(
+						mine.position.lat,
+						mine.position.lng,
+						theirs.position.lat,
+						theirs.position.lng,
+						1,
+						'Waiting',
+						id,
+						function(myChimneyComm){
+							myChimneyComm.routeSubscribe(
+								function(){},
+								drawRoute(mine)
+							)
 						}
 					);
 
-					function drawRoute(chim){
-						var comMark = new google.maps.Marker({
-							position: chim.position,
-							map: map,
-							icon:'chimney.png'
-						});
-
-						var vMark = new google.maps.Marker({
-							icon:'transport.png'
-						});
-
-						return function(routed){
-							directionsDisplay = new google.maps.DirectionsRenderer();
-							directionsDisplay.setMap(map);
-							var route = routed.route;
-							var waypoints = route.actions.map(toLatLng);
-							comMark.setCenter(
-								toLatLng(route.value)
-							);
-
-							vMark.setMap(map);
-							vMArk.setCenter(toLatLng(route.vehicle));
-							var dirReq = {
-								origin:waypoints[0],
-								destination:waypoints[waypoints.length-1],
-								travelMode:google.maps.TravelMode.DRIVING,
-								waypoints:waypoints.slice(1,waypoints.length-1).map(
-									function(wp){return {location: wp}}
-								)
-							};
-							directionsService.route(dirReq, function(result, status){
-								if(status != google.maps.DirectionsStatus.OK)
-									throw new Error("error from google maps routing");
-								directionsDisplay.setDirections(result);
-							});
-							
-						};
-					}
-
-					app.getDefaultClusterId(function(id){
-						app.createCommodity(
-							mine.position.lat,
-							mine.position.lng,
-							theirs.position.lat,
-							theirs.position.lng,
-							1,
-							'Waiting',
-							id,
-							function(myChimneyComm){
-								myChimneyComm.routeSubscribe(
-									function(){},
-									drawRoute(mine)
-								)
-							}
-						);
-
-						app.createCommodity(
-							theirs.position.lat,
-							theirs.position.lng,
-							mine.position.lat,
-							mine.position.lng
-							1,
-							'Waiting',
-							id,
-							function(theirChimneyComm){
-								theirChimneyComm.routeSubscribe(
-									function(){},
-									drawRoute(theirs)
-								)
-							}
-						);
-					});
-				}
-
-			script(async=true, defer=true, src="https://maps.googleapis.com/maps/api/js?key=#{encodeURIComponent(apiKey)}&callback=initMap").
+					app.createCommodity(
+						theirs.position.lat,
+						theirs.position.lng,
+						mine.position.lat,
+						mine.position.lng,
+						1,
+						'Waiting',
+						id,
+						function(theirChimneyComm){
+							theirChimneyComm.routeSubscribe(
+								function(){},
+								drawRoute(theirs)
+							)
+						}
+					);
+				});
 		- }
 
 		#add-chimney(role='tabpanel', class='tab-pane'+(tab=='add'?'active':''))

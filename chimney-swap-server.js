@@ -20,17 +20,9 @@ var app = express();
 
 function geocode(address,done,error){
 	console.log("geocoding address: "+address);
-	var url = "https://maps.googleapis.com/maps/api/geocode/json";
-	var params = {
-		'address':address,
-		'key':GOOGLE_CONSUMER_KEY
-	};
-	var pos = {lat:39.44,lng:-87.34};
-	done(pos);
-	return; // geocoding does not work
 	https.request({
 			host:'maps.googleapis.com',
-			path:'/maps/api/geocode/json?address='+encodeURIComponent(address)+'&key='+encodeURIComponent(GOOGLE_CONSUMER_KEY),
+			path:'/maps/api/geocode/json?address='+encodeURIComponent(address),
 			method:'GET'
 		}, function(response){
 			var str = '';
@@ -38,8 +30,10 @@ function geocode(address,done,error){
 				str += dat;
 			});
 			response.on('end',function(){
-				console.log(str);
-				done(JSON.parse(str));
+				var data = JSON.parse(str);
+				console.log(data);
+				var pos = data.results[0].geometry.location
+				done(pos);
 			});
 			response.on('error',function(err){
 				error(err);
@@ -103,12 +97,19 @@ function homeView(session, tab, swap){
 			tab:tab || 'search',
 		};
 	}
-	if(swap){
+	if(swap && swap.theirs){
 		obj.swap = {
 			mine: database.chimneys[swap.mine],
 			theirs: database.chimneys[swap.theirs]
 		};
-		obj.apiKey = GOOGLE_CONSUMER_KEY;
+		var mine = database.chimneys[swap.mine];
+		var theirs = database.chimneys[swap.theirs];
+		if(mine){
+			mine.remove();
+		}
+		if(theirs){
+			theirs.remove();
+		}
 	}
 	return obj;
 }
@@ -241,7 +242,12 @@ app.get('/', function(req, res){
 });
 
 app.get('/home', function(req,res){
-	res.render('home',homeView(req.session, 'search'));
+	var tab = req.param('tab') || 'search';
+	var swap = req.param('swap');
+	var mine = req.param('mine');
+	res.render('home',homeView(req.session, tab,{
+		mine: mine, theirs: swap
+	}));
 });
 
 app.get('/auth/google',
@@ -263,6 +269,7 @@ app.post('/swap', function(req,res){
 	var mine = req.param('mine');
 	var theirs = req.param('theirs');
 	res.render('home',homeView(req.session,'swap',{mine:mine,theirs:theirs}));
+
 });
 
 app.post('/chimney', multipart, function (req, res) {
@@ -270,7 +277,6 @@ app.post('/chimney', multipart, function (req, res) {
 	if(req.session && req.session.passport && req.session.passport.user){
 		user = database.users[req.session.passport.user];
 	}
-	var redirect = req.param('redirect');
 	var address = req.param('address');
 	var latitude = req.param('latitude');
 	var longitude = req.param('longitude');
@@ -278,12 +284,11 @@ app.post('/chimney', multipart, function (req, res) {
 	var name = req.param('name');
 	var img = req.param('image');
 	var tab = req.param('tab');
-	var theirs = req.param('swap');
+	var swap = req.param('swap');
 	function makeChimney(position){
 		console.log("Sample application trying to make chimney in makeChimney at position: "+position);
 		var chimney = new Chimney(name, user, position);
 		chimney.insert();
-		var swap = theirs ? {mine: chimney.id, theirs:theirs} : undefined;
 		var targetPath = path.resolve(chimney.imagePath());
 		console.log(req.files);
 		if(img){
@@ -294,11 +299,8 @@ app.post('/chimney', multipart, function (req, res) {
 					res.setHeader('Content-Type', 'text/plain');
 					res.status(400).send('bad image');
 				} else if(tab){
-					res.status(201).render('home',homeView(
-						req.session,
-						tab,
-						swap
-					));
+					res.redirect('/home?tab='+tab+'&swap='+swap+'&mine='+chimney.id);
+					return;
 				} else
 					res.status(201).send();
 			});
@@ -311,12 +313,8 @@ app.post('/chimney', multipart, function (req, res) {
 					res.status(400).send('bad image');
 					fs.unlink(tempPath)
 				} else if(tab){
-					res.status(201).render('home',
-						homeView(req.session,
-							tab,
-							swap
-						)
-					);
+					res.redirect('/home?tab='+tab+'&swap='+swap+'&mine='+chimney.id);
+					return;
 				} else
 					res.status(201).send()
 			});
@@ -348,10 +346,14 @@ app.post('/chimney', multipart, function (req, res) {
 });
 
 app.get('/chimney', function (req, res){
+	console.log("GET WAS CALLED");
+	console.log(req);
 	var id = req.param('id');
 	var chimney = database.chimneys[id];
 	if(!chimney){
+		res.setHeader('Content-Type', 'text/plain');
 		res.status(404).send("Chimney Not Found");
+		return;
 	}
 	res.setHeader('Content-Type', 'application/json');
 	res.status(200).send(chimney.resource());

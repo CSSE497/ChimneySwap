@@ -10,3 +10,7 @@
 	overflow: hidden;
 }
 
+#map {
+	height:66vh;
+	width:100%;
+}

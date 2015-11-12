@@ -26,7 +26,7 @@ mixin chimneyForm(tab)
 			label.control-label(for="image") Picture
 			input(type="file", name="image", accept="image/*")
 		input.swap-input(type='hidden', name="swap" value="0")
-		input.swap-input(type='hidden', name="tab" value="#{tab}")
+		input(type='hidden', name="tab" value="#{tab}")
 		input.btn.btn-primary(type="submit", value="Submit")
 
 html
