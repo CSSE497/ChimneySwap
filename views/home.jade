@@ -55,10 +55,8 @@ block content
 						thing.longitude
 					);
 				}
-
 				
 				var directionsService = new google.maps.DirectionsService();
-
 
 				var map = new google.maps.Map(
 					document.getElementById('map'),
@@ -67,6 +65,13 @@ block content
 						zoom: 10
 					}
 				);
+
+				var bounds = new google.maps.LatLngBounds();
+				console.log(mine);
+				console.log(theirs);
+				bounds.extend(new google.maps.LatLng(mine.position));
+				bounds.extend(new google.maps.LatLng(theirs.position));
+				map.fitBounds(bounds);
 
 				function drawRoute(chim){
 					console.log('draw route');
@@ -80,17 +85,17 @@ block content
 						icon:'icon/Transport.png'
 					});
 
-					return function(routed){
+					return function(obj, routed){
+						console.log('route updated');
 						directionsDisplay = new google.maps.DirectionsRenderer();
 						directionsDisplay.setMap(map);
+						console.log(routed);
 						var route = routed.route;
 						var waypoints = route.actions.map(toLatLng);
-						comMark.setCenter(
-							toLatLng(route.value)
-						);
+						console.log(routed.value);
 
 						vMark.setMap(map);
-						vMArk.setCenter(toLatLng(route.vehicle));
+						vMark.setPosition(toLatLng(route.vehicle));
 						var dirReq = {
 							origin:waypoints[0],
 							destination:waypoints[waypoints.length-1],
@@ -99,15 +104,18 @@ block content
 								function(wp){return {location: wp}}
 							)
 						};
+						console.log(dirReq);
 						directionsService.route(dirReq, function(result, status){
 							if(status != google.maps.DirectionsStatus.OK)
-								throw new Error("error from google maps routing");
-							directionsDisplay.setDirections(result);
+								console.warn("error from google maps routing");
+							else
+								directionsDisplay.setDirections(result);
 						});
 						
 					};
 				}
 				app.getDefaultClusterId(function(id){
+					console.log('DEFAULT CLUSTER');
 					app.createCommodity(
 						mine.position.lat,
 						mine.position.lng,
@@ -117,6 +125,7 @@ block content
 						'Waiting',
 						id,
 						function(myChimneyComm){
+							console.log("COMM CALLBACK CALLED");
 							myChimneyComm.routeSubscribe(
 								function(){},
 								drawRoute(mine)
