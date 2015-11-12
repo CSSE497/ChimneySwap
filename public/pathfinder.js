@@ -2421,7 +2421,7 @@ Pathfinder.prototype.handleRouted = function(data) {
     if(request !== undefined) {
         var callback = request.callback;
         delete this.pendingRequests.routed[data.model][id];
-
+		
         callback(data);
     }
 
