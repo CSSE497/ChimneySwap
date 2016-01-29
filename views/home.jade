@@ -35,7 +35,7 @@ block content
 				.col-sm-12
 					#map
 
-			script(src="/pathfinder.js")
+			script(src="/bower_components/pathfinder.js/pathfinder.js")
 			script(src="https://maps.googleapis.com/maps/api/js")
 			script(type='text/javascript').
 
@@ -43,11 +43,7 @@ block content
 
 				var theirs = !{swap.theirs.resource()};
 
-				var app = new Pathfinder(
-					'ws://api.thepathfinder.xyz:9000/socket',
-					'9c4166bb-9535-49e1-8844-1904a0b1f45b',
-					'password'
-				);
+				var app = new Pathfinder('!{pathfinderId}');
 
 				function toLatLng(thing){
 					return new google.maps.LatLng(
@@ -84,18 +80,16 @@ block content
 					var vMark = new google.maps.Marker({
 						icon:'icon/Transport.png'
 					});
-
+					directionsDisplay = new google.maps.DirectionsRenderer();
+					directionsDisplay.setMap(map);
+					directionsDisplay.setOptions({suppressMarkers: true});
 					return function(obj, routed){
 						console.log('route updated');
-						directionsDisplay = new google.maps.DirectionsRenderer();
-						directionsDisplay.setMap(map);
 						console.log(routed);
 						var route = routed.route;
-						var waypoints = route.actions.map(toLatLng);
-						console.log(routed.value);
-
+						var waypoints = routed.actions.map(toLatLng);
 						vMark.setMap(map);
-						vMark.setPosition(toLatLng(route.vehicle));
+						vMark.setPosition(toLatLng(routed.vehicle));
 						var dirReq = {
 							origin:waypoints[0],
 							destination:waypoints[waypoints.length-1],
@@ -114,16 +108,16 @@ block content
 						
 					};
 				}
-				app.getDefaultClusterId(function(id){
+				app.getDefaultCluster(function(c){
 					console.log('DEFAULT CLUSTER');
 					app.createCommodity(
 						mine.position.lat,
 						mine.position.lng,
 						theirs.position.lat,
 						theirs.position.lng,
-						1,
+						{capacity:1},
 						'Waiting',
-						id,
+						c.id,
 						function(myChimneyComm){
 							console.log("COMM CALLBACK CALLED");
 							myChimneyComm.routeSubscribe(
@@ -138,9 +132,9 @@ block content
 						theirs.position.lng,
 						mine.position.lat,
 						mine.position.lng,
-						1,
+						{capacity:1},
 						'Waiting',
-						id,
+						c.id,
 						function(theirChimneyComm){
 							theirChimneyComm.routeSubscribe(
 								function(){},

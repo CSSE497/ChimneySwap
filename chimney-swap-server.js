@@ -12,6 +12,7 @@ var fs = require('fs');
 
 var GOOGLE_CONSUMER_KEY = config.apiKey;
 var GOOGLE_CONSUMER_SECRET = config.apiSecret;
+var PATHFINDER_ID = config.pathfinderId;
 var DOMAIN_NAME = config.domainName;
 var PORT = config.port;
 var SERVER_URL = "http://"+DOMAIN_NAME;
@@ -95,6 +96,7 @@ function homeView(session, tab, swap){
 			chimneys:database.chimneys,
 			theme:'slate',
 			tab:tab || 'search',
+			pathfinderId: PATHFINDER_ID
 		};
 	}
 	if(swap && swap.theirs){
@@ -118,6 +120,7 @@ User.prototype.homeView = function(tab){
 	return {
 		myChimneys:database.users[this.id].chimneys,
 		chimneys:database.chimneys,
+		pathfinderId: PATHFINDER_ID,
 		theme:'slate',
 		tab:(tab || 'search')
 	};

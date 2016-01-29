@@ -1,0 +1,20 @@
+{
+  "name": "pathfinder.js",
+  "description": "The Pathfinder JS SDK allows developers to integrate Pathfinder routing service",
+  "main": "gulpfile.js",
+  "authors": [
+    "Adam Michael <adam@ajmichael.net>",
+    "David Robinson <robinsdm@rose-hulman.edu>"
+  ],
+  "license": "MIT",
+  "homepage": "https://github.com/csse497/pathfinder",
+  "moduleType": [],
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests",
+    "examples"
+  ]
+}
