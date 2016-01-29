@@ -1,0 +1,24 @@
+{
+  "name": "ChimneySwap",
+  "description": "Chimney swapping app for chimney enthusiasts",
+  "main": "",
+  "authors": [
+    "danhanson <danielghanson93@gmail.com>"
+  ],
+  "license": "MIT",
+  "homepage": "http://chimneyswap.xyz",
+  "moduleType": [
+    "es6"
+  ],
+  "private": true,
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "pathfinder.js": "~0.1.2"
+  }
+}
