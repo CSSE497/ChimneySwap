@@ -108,7 +108,7 @@ block content
 						
 					};
 				}
-				app.getDefaultCluster(function(c){
+				app.getCluster('/root/midwest/th', function(c){
 					console.log('DEFAULT CLUSTER');
 					app.createCommodity(
 						mine.position.lat,
