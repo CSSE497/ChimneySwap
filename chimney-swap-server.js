@@ -397,22 +397,21 @@ console.log("started server on: "+SERVER_URL);
 
 var user = new User({"id":"109986445607396986536", "name":{"givenName":"Dan","familyName":"Hanson"}, "email":"danielghanson93@gmail.com"}).insert();
 
-var pos = {lat:39.44,lng:-87.34};
-var x = new Chimney("Red Chimney", user, pos).insert();
+var x = new Chimney("Red Chimney", user,{lat:39.44,lng:-87.34}).insert();
 
-x = new Chimney("Silver Stack", user, pos).insert();
+x = new Chimney("Silver Stack", user,{lat:39.4667,lng:-87.416}).insert();
 
-x = new Chimney("Cinder Smokeshaft", null, pos).insert();
+x = new Chimney("Cinder Smokeshaft", null,{lat:39.4667,lng:-87.4148}).insert();
 
-x = new Chimney("Amber Pillar", null, pos).insert();
+x = new Chimney("Amber Pillar", null,{lat:39.4777,lng:-87.3565}).insert();
 
-x = new Chimney("Bricked Square Shaft", null, pos).insert();
+x = new Chimney("Bricked Square Shaft", null,{lat:39.4596,lng:-87.3039}).insert();
 
-x = new Chimney("Victorian Ventilator", null, pos).insert();
+x = new Chimney("Victorian Ventilator", null,{lat:39.4559,lng:-87.36916}).insert();
 
-x = new Chimney("Chimney Rock", null, pos).insert();
+x = new Chimney("Chimney Rock", null,{lat:39.4684,lng:-87.3955}).insert();
 
-x = new Chimney("Twisted Tube", null, pos).insert();
+x = new Chimney("Twisted Tube", null,{lat:39.472597,lng:-87.3772}).insert();
 
-x = new Chimney("Cubed Chimney", null, pos).insert();
+x = new Chimney("Cubed Chimney", null,{lat:39.4858,lng:-87.294459}).insert();
 
