@@ -43,7 +43,7 @@ block content
 
 				var theirs = !{swap.theirs.resource()};
 
-				var app = new Pathfinder('!{pathfinderId}');
+				var app = new Pathfinder('!{pathfinderId}', '!{idToken}');
 
 				function toLatLng(thing){
 					return new google.maps.LatLng(
@@ -89,7 +89,7 @@ block content
 						var route = routed.route;
 						var waypoints = routed.actions.map(toLatLng);
 						vMark.setMap(map);
-						vMark.setPosition(toLatLng(routed.vehicle));
+						vMark.setPosition(toLatLng(routed.transport));
 						var dirReq = {
 							origin:waypoints[0],
 							destination:waypoints[waypoints.length-1],

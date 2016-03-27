@@ -4,8 +4,7 @@ var bodyParser  = require('body-parser');
 var passport = require('passport');
 var session = require('express-session');
 var multipart = require('connect-multiparty')({uploadDir: __dirname+'/tmp'});
-var GoogleStrategy = require('passport-google-oauth2').Strategy;
-var config = require('config.json')(__dirname+'/config.json');
+var config = require(__dirname+'/config.json');
 
 var path = require('path');
 var fs = require('fs');
@@ -69,7 +68,7 @@ Record.prototype.remove = function(){
 
 Record.prototype.deleteCascade = function(){};
 
-function User(profile){
+function User(profile, idToken){
 	var rec = this.table[this.id];
 	if(rec){
 		rec.firstName = profile.name.givenName;	
@@ -81,6 +80,7 @@ function User(profile){
 	this.firstName = profile.name.givenName;
 	this.lastName = profile.name.familyName;
 	this.email = profile.email;
+	this.idToken = idToken;
 	this.chimneys = {};
 }
 
@@ -96,7 +96,8 @@ function homeView(session, tab, swap){
 			chimneys:database.chimneys,
 			theme:'slate',
 			tab:tab || 'search',
-			pathfinderId: PATHFINDER_ID
+			pathfinderId: PATHFINDER_ID,
+			idToken: session.idToken
 		};
 	}
 	if(swap && swap.theirs){
@@ -121,6 +122,7 @@ User.prototype.homeView = function(tab){
 		myChimneys:database.users[this.id].chimneys,
 		chimneys:database.chimneys,
 		pathfinderId: PATHFINDER_ID,
+		idToken: this.idToken,
 		theme:'slate',
 		tab:(tab || 'search')
 	};
@@ -201,21 +203,22 @@ passport.deserializeUser(function(id, done) {
 	done(null, database.users[id]);
 });
 
-passport.use(new GoogleStrategy(
-	{
-		clientID: GOOGLE_CONSUMER_KEY,
-		clientSecret: GOOGLE_CONSUMER_SECRET,
-		callbackURL: SERVER_URL+'/auth/google/return',
-		passReqToCallback   : true
-	},
-	function(req, accessToken, refreshToken, profile, done){
-		var user = new User(profile);
-		if(!database.users[user.id]){
-			user.insert();
+function getId(req,res,next){
+	if(!req.session.idToken){
+		if(req.query.id_token){
+			req.session.idToken = req.query.id_token;
+			next();
+			return;
 		}
-		done(null, user);
+		res.redirect(
+			'https://auth.thepathfinder.xyz/auth/google?' +
+			'application='+encodeURIComponent(PATHFINDER_ID) + '&' +
+			'return_url='+encodeURIComponent(req.protocol+'://'+req.hostname+':'+PORT+req.path)
+		);
+		return
 	}
-));
+	next();
+}
 
 app.use(bodyParser.json({limit:'50mb'}));
 app.use(bodyParser.urlencoded());
@@ -244,7 +247,7 @@ app.get('/', function(req, res){
 	res.render('index',{theme:"slate"});
 });
 
-app.get('/home', function(req,res){
+app.get('/home', getId, function(req,res){
 	var tab = req.param('tab') || 'search';
 	var swap = req.param('swap');
 	var mine = req.param('mine');
@@ -253,29 +256,13 @@ app.get('/home', function(req,res){
 	}));
 });
 
-app.get('/auth/google',
-	passport.authenticate('google', {
-		scope: ["https://www.googleapis.com/auth/userinfo.email",
-		        "https://www.googleapis.com/auth/userinfo.profile"]
-	})
-);
-
-app.get('/auth/google/return',
-	passport.authenticate('google', {
-		failureRedirect: SERVER_URL+'/',
-		successRedirect: SERVER_URL+'/home',
-		failureFlash: true
-	})
-);
-
-app.post('/swap', function(req,res){
+app.post('/swap', getId, function(req,res){
 	var mine = req.param('mine');
 	var theirs = req.param('theirs');
 	res.render('home',homeView(req.session,'swap',{mine:mine,theirs:theirs}));
-
 });
 
-app.post('/chimney', multipart, function (req, res) {
+app.post('/chimney', getId, multipart, function (req, res) {
 	var user = null;
 	if(req.session && req.session.passport && req.session.passport.user){
 		user = database.users[req.session.passport.user];
@@ -350,7 +337,6 @@ app.post('/chimney', multipart, function (req, res) {
 
 app.get('/chimney', function (req, res){
 	console.log("GET WAS CALLED");
-	console.log(req);
 	var id = req.param('id');
 	var chimney = database.chimneys[id];
 	if(!chimney){
