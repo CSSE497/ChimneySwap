@@ -211,9 +211,7 @@ function getId(req,res,next){
 			return;
 		}
 		res.redirect(
-			'https://auth.thepathfinder.xyz/auth/google?' +
-			'application='+encodeURIComponent(PATHFINDER_ID) + '&' +
-			'return_url='+encodeURIComponent(req.protocol+'://'+req.hostname+':'+PORT+req.path)
+			'https://auth.thepathfinder.xyz/auth/google?return_url='+encodeURIComponent(req.protocol+'://'+req.hostname+':'+PORT+req.path)
 		);
 		return
 	}
@@ -254,6 +252,11 @@ app.get('/home', getId, function(req,res){
 	res.render('home',homeView(req.session, tab,{
 		mine: mine, theirs: swap
 	}));
+});
+
+app.get('/sign-out', function(req,res){
+	delete req.session;
+	res.redirect('/');
 });
 
 app.post('/swap', getId, function(req,res){

@@ -72,9 +72,11 @@ function Pathfinder(appId, idToken) {
                     ws.send(JSON.stringify({
                         message:'Authenticate'
                     }));
+                } else if(request.status === 404) {
+                    alert('User is unauthorized'); // should use a callback or flag instead
                 } else {
-			console.warn('authentication failed ' + request.status);
-		}
+                    console.warn('authentication failed ' + request.status);
+                }
             }
         };
         request.open('POST',url);
@@ -288,13 +290,13 @@ Pathfinder.prototype.handleRouted = function(data) {
         var callback = request.callback;
         delete this.pendingRequests.routed[data.model][id];
 
-        callback(data.route);
+        callback(data.route, data.unroutedCommodities);
     }
 
     if(subscription !== undefined) {
         var subCallback = subscription.callback;
 
-        subCallback(subscription.obj, data.route);
+        subCallback(subscription.obj, data.route, data.unroutedCommodities);
     }
 };
 
@@ -362,7 +364,11 @@ Pathfinder.prototype.requestHelper = function(type, model, id, obj, callback) {
                 this.messageBacklog.push(message);
                 break;
             case 1: // opened, send message
-                this.websocket.send(message);
+                if (this.messageBacklog === undefined) {
+                    this.websocket.send(message);
+                } else {
+                    this.messageBacklog.push(message);
+                }
                 break;
             case 2: // closing
                 throw new Error("Failed to send message: \""+message+"\" because socket is closing");

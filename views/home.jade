@@ -12,6 +12,10 @@ block content
 				- }
 				+tab("add-chimney")(class=(tab=='add'?'active':''))
 					| Add Chimney
+			ul.nav.navbar-nav.navbar-right
+				li
+					a(href='sign-out')
+						| Sign Out
 	.tab-content
 		#search-chimneys(role="tabpanel", class='tab-pane '+(tab=='search'?'active':''))
 			.container: div.row
