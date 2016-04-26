@@ -9,17 +9,17 @@ var PathfinderConfig = {
  * to query cluster data or request commodity transit.
  *
  * @param {string} appId - The application identifier for your Pathfinder application
+ * @param {idToken} idToken - The id token for the user logging in
+ * @param {url} url - An optional argument, the url used to send a post request, this is used with the default authenticate function
  * @constructor
  */
-function Pathfinder(appId, idToken) {
-    this.url = PathfinderConfig.websocket + "?AppId=" + encodeURIComponent(appId);
-    if(idToken === undefined || idToken === null){
-        // get id token somehow
-        throw new Error('no Id token provided');
-    }
+function Pathfinder(appId, idToken, url, dashboard) {
+    this.url = (url || PathfinderConfig.websocket) + "?AppId=" + encodeURIComponent(appId);
     this.appId = appId;
     this.websocket = new WebSocket(this.url);
     var authenticatedOnMessage = this.onmessage.bind(this);
+
+    this.idToken = idToken
 
     // stores requests made before the socket is ready
     this.messageBacklog = [];
@@ -45,42 +45,29 @@ function Pathfinder(appId, idToken) {
     this.websocket.onmessage = function(message){
         var connected = JSON.parse(message.data);
         if(connected.message !== "ConnectionId"){
-            console.warn('WEBSOCKET: expected message ConnectionId, got ' + message.data + 'instead.');
+            console.warn('WEBSOCKET: expected message ConnectionId, got ' + message.data + ' instead.');
             return;
         }
         var connectionId = connected.id;
-        console.log('Connected: '+ connectionId);
-
-        request = new XMLHttpRequest();
-        var url = PathfinderConfig.authentication + '?' +
-            'id_token=' + encodeURIComponent(idToken) + '&' +
-            'application_id=' + encodeURIComponent(appId) + '&' +
-            'connection_id=' + encodeURIComponent(connectionId);
-        console.log('POST TO ' + url);
-        request.onreadystatechange = function(){
-            if(request.readyState === 4){
-                if(request.status === 204){ // successful
-                    ws.onmessage = function(message){
-                        authenticated = JSON.parse(message.data);
-                        if(authenticated.message !== 'Authenticated'){
-                            console.warn('WEBSOCKET: expected message Authenticated, got ' + message.data + 'instead.');
-                            return;
-                        }
-                        onAuthenticated.call();
-                        ws.onmessage =  authenticatedOnMessage;
-                    }
-                    ws.send(JSON.stringify({
-                        message:'Authenticate'
-                    }));
-                } else if(request.status === 404) {
-                    alert('User is unauthorized'); // should use a callback or flag instead
-                } else {
-                    console.warn('authentication failed ' + request.status);
+        function next(){
+            ws.onmessage = function(message){
+                authenticated = JSON.parse(message.data);
+                if(authenticated.message !== 'Authenticated'){
+                    console.warn('WEBSOCKET: expected message Authenticated, got ' + message.data + 'instead.');
+                    return;
                 }
+                onAuthenticated.call();
+                ws.onmessage =  authenticatedOnMessage;
             }
-        };
-        request.open('POST',url);
-        request.send();
+            var message = {
+                message:'Authenticate',
+            };
+            if(dashboard){
+                message.dashboard = true;
+            }
+            ws.send(JSON.stringify(message));
+        }
+        this.authenticate(connectionId, next);
     }
 
     this.pendingRequests = {
@@ -134,6 +121,29 @@ function Pathfinder(appId, idToken) {
     };
 }
 
+/*
+ * This function prepares the auth server for the authentication request.
+ */
+Pathfinder.prototype.authenticate = function(connectionId, next){
+    console.log('Connected: '+ connectionId);
+    request = new XMLHttpRequest();
+    var url = this.url + '?' +
+        (this.idToken ? 'id_token=' + encodeURIComponent(this.idToken) + '&' : '') +
+        'application_id=' + encodeURIComponent(this.appId) + '&' +
+        'connection_id=' + encodeURIComponent(connectionId);
+    console.log('POST TO ' + url);
+    request.onreadystatechange = function(){
+        if(request.readyState === 4){
+            if(request.status === 204){ // successful
+                next();
+            } else {
+                console.warn('authentication failed ' + request.status);
+            }
+        }
+    }
+    request.open('POST', url);
+    request.send();
+};
 
 /**
  * Closes the Pathfinder service's WebSocket

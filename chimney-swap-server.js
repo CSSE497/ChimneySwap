@@ -5,6 +5,7 @@ var passport = require('passport');
 var session = require('express-session');
 var multipart = require('connect-multiparty')({uploadDir: __dirname+'/tmp'});
 var config = require(__dirname+'/config.json');
+var jwt = require('jsonwebtoken');
 
 var path = require('path');
 var fs = require('fs');
@@ -15,6 +16,11 @@ var PATHFINDER_ID = config.pathfinderId;
 var DOMAIN_NAME = config.domainName;
 var PORT = config.port;
 var SERVER_URL = "http://"+DOMAIN_NAME;
+var KEY = fs.readFileSync(config.pathfinderKey).toString();
+var creds = {
+	key: fs.readFileSync(config.ssl.key).toString(),
+	cert: fs.readFileSync(config.ssl.certificate).toString()
+};
 
 var app = express();
 
@@ -379,9 +385,28 @@ app.get('/chimneys', function (req, res){
 	);
 });
 
+server.post('/connection', function(req, res, next){
+	var connection_id = req.query.connection_id;
+	res.send(201);
+});
+
+server.get('/connection', function(req, res, next){
+	var connection_id = req.query.connection_id;
+	var token = {
+		sub:connection_id,
+		aud:'https://api.thepathfinder.xyz',
+		iss:PATHFINDER_ID,
+		exp: ((Date.now() / 1000) | 0) + 300,
+		status:'Authenticated'
+	};
+	var tokenStr = jwt.sign(token, KEY,{algorithms:["HS256"]});
+	res.send(tokenStr);
+});
+
 app.use('/', express.static(__dirname + '/public'));
 
-app.listen(PORT);
+https.createServer(creds, app).listen(PORT);
+
 console.log("started server on: "+SERVER_URL);
 
 var user = new User({"id":"109986445607396986536", "name":{"givenName":"Dan","familyName":"Hanson"}, "email":"danielghanson93@gmail.com"}).insert();
